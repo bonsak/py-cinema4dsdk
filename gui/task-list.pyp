@@ -202,7 +202,7 @@ class TaskListDialog(c4d.gui.GeDialog):
             bc.SetBool(base_id + res.TASKWIDGET_OFFSET_STATE, task['done'])
             bc.SetString(base_id + res.TASKWIDGET_OFFSET_NAME, task['name'])
 
-        # Set the container to the document.
+        # Save to the document.
         self._last_doc.GetDataInstance().SetContainer(PLUGIN_ID, bc)
 
     def LoadTasks(self):
@@ -336,6 +336,7 @@ class TaskListDialog(c4d.gui.GeDialog):
             # which widget was triggered.
             if task_index < len(self._task_list):
                 task = self._task_list[task_index]
+
                 if widget_offset == res.TASKWIDGET_OFFSET_STATE:
                     task['done'] = self.GetBool(param)
                     changed = True
@@ -345,9 +346,19 @@ class TaskListDialog(c4d.gui.GeDialog):
                     text_id = self.ComputeTaskId(
                             task_index, res.TASKWIDGET_OFFSET_NAME)
                     self.Enable(text_id, not task['done'])
+
                 elif widget_offset == res.TASKWIDGET_OFFSET_NAME:
-                    task['name'] = self.GetString(param)
-                    changed = True
+
+                    # Check the message container if the String
+                    # has changed. If it did not, this event tells
+                    # us that the user finished editing the field.
+                    if not bc.GetLong(c4d.BFM_ACTION_STRCHG):
+                        changed = True
+
+                    # Otherwise, we'll update the internal Task List.
+                    else:
+                        task['name'] = self.GetString(param)
+
                 elif widget_offset == res.TASKWIDGET_OFFSET_REMOVE:
                     del self._task_list[task_index]
                     changed = True
