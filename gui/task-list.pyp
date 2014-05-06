@@ -32,8 +32,8 @@ r"""
         to select all the contents of a text field when a task is
         created.
     tags:
-        command gui persistent-data async-dialog bitmap-button
-        event-emulation
+        command gui persistent-data persistent-data-undo async-dialog
+        bitmap-button event-emulation
     level: medium
     links:
         http://www.plugincafe.com/forum/forum_posts.asp?TID=9828
@@ -85,6 +85,20 @@ def IsSameNode(node_a, node_b):
     if not node_a.IsAlive() or not node_b.IsAlive():
         return False
     return node_a == node_b
+
+def GetBaseSettingsHook(doc):
+    r""" Returns the SceneHook of the document that is always
+    available. Displays a warning in the unlikely event that
+    it is not available. """
+
+    hook = doc.FindSceneHook(c4d.ID_BS_HOOK)
+    if not hook:
+        import warning
+        raise warning.warn(
+                '[TaskList]: BaseSettings Hook not found',
+                RuntimeWarning)
+
+    return hook
 
 class TaskListDialog(c4d.gui.GeDialog):
     r""" This class implements creating the layout for the Task list
@@ -192,7 +206,9 @@ class TaskListDialog(c4d.gui.GeDialog):
     def SaveTasks(self):
         r""" Saves the tasks in the :attr:`_task_list` to the last
         document that we had hold of. They will be stored in a sub
-        container of the document associated with this Plugin's ID. """
+        container of a SceneHook in the document that is always
+        available. We use this SceneHook because it allows us to
+        add undos, which is not possible for the document itself. """
 
         # Create the container and will it with the tasks.
         bc = c4d.BaseContainer()
@@ -203,15 +219,31 @@ class TaskListDialog(c4d.gui.GeDialog):
             bc.SetString(base_id + res.TASKWIDGET_OFFSET_NAME, task['name'])
 
         # Save to the document.
-        self._last_doc.GetDataInstance().SetContainer(PLUGIN_ID, bc)
+        doc = self._last_doc
+        hook = GetBaseSettingsHook(doc)
+        if hook:
+
+            # No matter what happens, the undo step must be
+            # closed after it was started.
+            doc.StartUndo()
+            try:
+                doc.AddUndo(c4d.UNDOTYPE_CHANGE_SMALL, hook)
+                hook.GetDataInstance().SetContainer(PLUGIN_ID, bc)
+            finally:
+                doc.EndUndo()
 
     def LoadTasks(self):
         r""" Loads tasks from the current document and puts them
         into the :attr:`_task_list` list. """
 
+        hook = GetBaseSettingsHook(self._last_doc)
+        if not hook:
+            self._task_list = []
+            return
+
         # Get the sub container and the number of tasks that
         # have been stored in it.
-        bc = self._last_doc.GetDataInstance().GetContainer(PLUGIN_ID)
+        bc = hook.GetDataInstance().GetContainer(PLUGIN_ID)
         task_count = max([bc.GetLong(0), 0])
 
         tasks = []
@@ -283,8 +315,9 @@ class TaskListDialog(c4d.gui.GeDialog):
 
         # One case this message is being sent is when the active
         # document has changed.
-        if kind == c4d.EVMSG_DOCUMENTRECALCULATED:
-            self.Refresh()
+        if kind in [c4d.EVMSG_CHANGE, c4d.EVMSG_DOCUMENTRECALCULATED]:
+            update = (kind == c4d.EVMSG_CHANGE)
+            self.Refresh(force=update, reload_=update)
 
         return True
 

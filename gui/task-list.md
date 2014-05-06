@@ -2,7 +2,9 @@ The `task-list.pyp` demonstrates:
 
 1. How to create a dynamic dialog
 2. How to respond to retrieve user-input
-3. How to store data from a dialog within a scene file
+3. How to store data from a dialog within a scene file including an
+undo functionality (exploitng the BaseSettings Hook that is always
+in the document)
 4. How to make a simple list from which you can add/subtract the last entry
 5. How to detect if a new scene is open
 6. How to emulate a keyboard event which is used to select all contents of
