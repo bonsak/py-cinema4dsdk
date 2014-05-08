@@ -88,17 +88,9 @@ def IsSameNode(node_a, node_b):
 
 def GetBaseSettingsHook(doc):
     r""" Returns the SceneHook of the document that is always
-    available. Displays a warning in the unlikely event that
-    it is not available. """
+    available. May return None. """
 
-    hook = doc.FindSceneHook(c4d.ID_BS_HOOK)
-    if not hook:
-        import warning
-        raise warning.warn(
-                '[TaskList]: BaseSettings Hook not found',
-                RuntimeWarning)
-
-    return hook
+    return doc.FindSceneHook(c4d.ID_BS_HOOK)
 
 class TaskListDialog(c4d.gui.GeDialog):
     r""" This class implements creating the layout for the Task list
